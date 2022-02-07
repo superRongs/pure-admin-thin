@@ -2,23 +2,26 @@
 import {
   ref,
   watch,
-  onBeforeMount,
   unref,
+  reactive,
   nextTick,
   computed,
-  getCurrentInstance,
-  ComputedRef
+  ComputedRef,
+  CSSProperties,
+  onBeforeMount,
+  getCurrentInstance
 } from "vue";
 
-import close from "/@/assets/svg/close.svg";
-import refresh from "/@/assets/svg/refresh.svg";
-import closeAll from "/@/assets/svg/close_all.svg";
-import closeLeft from "/@/assets/svg/close_left.svg";
-import closeOther from "/@/assets/svg/close_other.svg";
-import closeRight from "/@/assets/svg/close_right.svg";
+import close from "/@/assets/svg/close.svg?component";
+import refresh from "/@/assets/svg/refresh.svg?component";
+import closeAll from "/@/assets/svg/close_all.svg?component";
+import closeLeft from "/@/assets/svg/close_left.svg?component";
+import closeOther from "/@/assets/svg/close_other.svg?component";
+import closeRight from "/@/assets/svg/close_right.svg?component";
 
-import { isEqual } from "lodash-es";
 import { emitter } from "/@/utils/mitt";
+import { $t as t } from "/@/plugins/i18n";
+import { isEqual, isEmpty } from "lodash-es";
 import { transformI18n } from "/@/plugins/i18n";
 import { storageLocal } from "/@/utils/storage";
 import { useRoute, useRouter } from "vue-router";
@@ -28,7 +31,6 @@ import { handleAliveRoute, delAliveRoutes } from "/@/router/utils";
 import { useMultiTagsStoreHook } from "/@/store/modules/multiTags";
 import { usePermissionStoreHook } from "/@/store/modules/permission";
 import { toggleClass, removeClass, hasClass } from "/@/utils/operate";
-
 import { templateRef, useResizeObserver, useDebounceFn } from "@vueuse/core";
 
 const route = useRoute();
@@ -38,11 +40,11 @@ const activeIndex = ref<number>(-1);
 let refreshButton = "refresh-button";
 const instance = getCurrentInstance();
 const pureSetting = useSettingStoreHook();
-const showTags = ref(storageLocal.getItem("tagsVal") || false);
 const tabDom = templateRef<HTMLElement | null>("tabDom", null);
 const containerDom = templateRef<HTMLElement | null>("containerDom", null);
 const scrollbarDom = templateRef<HTMLElement | null>("scrollbarDom", null);
-
+const showTags =
+  ref(storageLocal.getItem("responsive-configure").hideTabs) ?? "false";
 let multiTags: ComputedRef<Array<RouteConfigs>> = computed(() => {
   return useMultiTagsStoreHook()?.multiTags;
 });
@@ -126,15 +128,15 @@ const moveToView = (index: number): void => {
   if (!instance.refs["dynamic" + index]) {
     return;
   }
-  const tabItemEl = instance.refs["dynamic" + index];
-  const tabItemElOffsetLeft = (tabItemEl as HTMLElement).offsetLeft;
-  const tabItemOffsetWidth = (tabItemEl as HTMLElement).offsetWidth;
+  const tabItemEl = instance.refs["dynamic" + index][0];
+  const tabItemElOffsetLeft = (tabItemEl as HTMLElement)?.offsetLeft;
+  const tabItemOffsetWidth = (tabItemEl as HTMLElement)?.offsetWidth;
   // 标签页导航栏可视长度（不包含溢出部分）
   const scrollbarDomWidth = scrollbarDom.value
-    ? scrollbarDom.value.offsetWidth
+    ? scrollbarDom.value?.offsetWidth
     : 0;
   // 已有标签页总长度（包含溢出部分）
-  const tabDomWidth = tabDom.value ? tabDom.value.offsetWidth : 0;
+  const tabDomWidth = tabDom.value ? tabDom.value?.offsetWidth : 0;
 
   if (tabDomWidth < scrollbarDomWidth || tabItemElOffsetLeft === 0) {
     translateX.value = 0;
@@ -184,45 +186,45 @@ const handleScroll = (offset: number): void => {
   }
 };
 
-const tagsViews = ref<Array<tagsViewsType>>([
+const tagsViews = reactive<Array<tagsViewsType>>([
   {
     icon: refresh,
-    text: "message.hsreload",
+    text: t("buttons.hsreload"),
     divided: false,
     disabled: false,
     show: true
   },
   {
     icon: close,
-    text: "message.hscloseCurrentTab",
+    text: t("buttons.hscloseCurrentTab"),
     divided: false,
     disabled: multiTags.value.length > 1 ? false : true,
     show: true
   },
   {
     icon: closeLeft,
-    text: "message.hscloseLeftTabs",
+    text: t("buttons.hscloseLeftTabs"),
     divided: true,
     disabled: multiTags.value.length > 1 ? false : true,
     show: true
   },
   {
     icon: closeRight,
-    text: "message.hscloseRightTabs",
+    text: t("buttons.hscloseRightTabs"),
     divided: false,
     disabled: multiTags.value.length > 1 ? false : true,
     show: true
   },
   {
     icon: closeOther,
-    text: "message.hscloseOtherTabs",
+    text: t("buttons.hscloseOtherTabs"),
     divided: true,
     disabled: multiTags.value.length > 2 ? false : true,
     show: true
   },
   {
     icon: closeAll,
-    text: "message.hscloseAllTabs",
+    text: t("buttons.hscloseAllTabs"),
     divided: false,
     disabled: multiTags.value.length > 1 ? false : true,
     show: true
@@ -230,9 +232,13 @@ const tagsViews = ref<Array<tagsViewsType>>([
 ]);
 
 // 显示模式，默认灵动模式显示
-const showModel = ref(storageLocal.getItem("showModel") || "smart");
+const showModel = ref(
+  storageLocal.getItem("responsive-configure")?.showModel || "smart"
+);
 if (!showModel.value) {
-  storageLocal.setItem("showModel", "card");
+  const configure = storageLocal.getItem("responsive-configure");
+  configure.showModel = "card";
+  storageLocal.setItem("responsive-configure", configure);
 }
 
 let visible = ref(false);
@@ -272,9 +278,10 @@ function dynamicRouteTag(value: string, parentPath: string): void {
 // 重新加载
 function onFresh() {
   toggleClass(true, refreshButton, document.querySelector(".rotate"));
-  const { fullPath } = unref(route);
+  const { fullPath, query } = unref(route);
   router.replace({
-    path: "/redirect" + fullPath
+    path: "/redirect" + fullPath,
+    query: query
   });
   setTimeout(() => {
     removeClass(document.querySelector(".rotate"), refreshButton);
@@ -305,10 +312,9 @@ function deleteDynamicTag(obj: any, current: any, tag?: string) {
           path: "/welcome",
           parentPath: "/",
           meta: {
-            title: "message.hshome",
+            title: "menus.hshome",
             i18n: true,
-            icon: "el-icon-s-home",
-            showLink: true
+            icon: "home-filled"
           }
         },
         obj
@@ -367,6 +373,19 @@ function deleteMenu(item, tag?: string) {
 
 function onClickDrop(key, item, selectRoute?: RouteConfigs) {
   if (item && item.disabled) return;
+
+  let selectTagRoute;
+  if (selectRoute) {
+    selectTagRoute = {
+      path: selectRoute.path,
+      meta: selectRoute.meta,
+      name: selectRoute.name,
+      query: selectRoute.query
+    };
+  } else {
+    selectTagRoute = { path: route.path, meta: route.meta };
+  }
+
   // 当前路由信息
   switch (key) {
     case 0:
@@ -375,49 +394,19 @@ function onClickDrop(key, item, selectRoute?: RouteConfigs) {
       break;
     case 1:
       // 关闭当前标签页
-      selectRoute
-        ? deleteMenu({
-            path: selectRoute.path,
-            meta: selectRoute.meta,
-            name: selectRoute.name
-          })
-        : deleteMenu({ path: route.path, meta: route.meta });
+      deleteMenu(selectTagRoute);
       break;
     case 2:
       // 关闭左侧标签页
-      selectRoute
-        ? deleteMenu(
-            {
-              path: selectRoute.path,
-              meta: selectRoute.meta
-            },
-            "left"
-          )
-        : deleteMenu({ path: route.path, meta: route.meta }, "left");
+      deleteMenu(selectTagRoute, "left");
       break;
     case 3:
       // 关闭右侧标签页
-      selectRoute
-        ? deleteMenu(
-            {
-              path: selectRoute.path,
-              meta: selectRoute.meta
-            },
-            "right"
-          )
-        : deleteMenu({ path: route.path, meta: route.meta }, "right");
+      deleteMenu(selectTagRoute, "right");
       break;
     case 4:
       // 关闭其他标签页
-      selectRoute
-        ? deleteMenu(
-            {
-              path: selectRoute.path,
-              meta: selectRoute.meta
-            },
-            "other"
-          )
-        : deleteMenu({ path: route.path, meta: route.meta }, "other");
+      deleteMenu(selectTagRoute, "other");
       break;
     case 5:
       // 关闭全部标签页
@@ -430,7 +419,7 @@ function onClickDrop(key, item, selectRoute?: RouteConfigs) {
       break;
   }
   setTimeout(() => {
-    showMenuModel(route.fullPath);
+    showMenuModel(route.fullPath, route.query);
   });
 }
 
@@ -445,50 +434,62 @@ function closeMenu() {
 
 function showMenus(value: boolean) {
   Array.of(1, 2, 3, 4, 5).forEach(v => {
-    tagsViews.value[v].show = value;
+    tagsViews[v].show = value;
   });
 }
 
 function disabledMenus(value: boolean) {
   Array.of(1, 2, 3, 4, 5).forEach(v => {
-    tagsViews.value[v].disabled = value;
+    tagsViews[v].disabled = value;
   });
 }
 
 // 检查当前右键的菜单两边是否存在别的菜单，如果左侧的菜单是首页，则不显示关闭左侧标签页，如果右侧没有菜单，则不显示关闭右侧标签页
-function showMenuModel(currentPath: string, refresh = false) {
+function showMenuModel(
+  currentPath: string,
+  query: object = {},
+  refresh = false
+) {
   let allRoute = multiTags.value;
   let routeLength = multiTags.value.length;
-  // currentIndex为1时，左侧的菜单是首页，则不显示关闭左侧标签页
-  let currentIndex = allRoute.findIndex(v => v.path === currentPath);
-  // 如果currentIndex等于routeLength-1，右侧没有菜单，则不显示关闭右侧标签页
+  let currentIndex = -1;
+  if (isEmpty(query)) {
+    currentIndex = allRoute.findIndex(v => v.path === currentPath);
+  } else {
+    currentIndex = allRoute.findIndex(v => isEqual(v.query, query));
+  }
+
   showMenus(true);
 
   if (refresh) {
-    tagsViews.value[0].show = true;
+    tagsViews[0].show = true;
   }
 
+  /**
+   * currentIndex为1时，左侧的菜单是首页，则不显示关闭左侧标签页
+   * 如果currentIndex等于routeLength-1，右侧没有菜单，则不显示关闭右侧标签页
+   */
   if (currentIndex === 1 && routeLength !== 2) {
     // 左侧的菜单是首页，右侧存在别的菜单
-    tagsViews.value[2].show = false;
+    tagsViews[2].show = false;
     Array.of(1, 3, 4, 5).forEach(v => {
-      tagsViews.value[v].disabled = false;
+      tagsViews[v].disabled = false;
     });
-    tagsViews.value[2].disabled = true;
+    tagsViews[2].disabled = true;
   } else if (currentIndex === 1 && routeLength === 2) {
     disabledMenus(false);
     // 左侧的菜单是首页，右侧不存在别的菜单
     Array.of(2, 3, 4).forEach(v => {
-      tagsViews.value[v].show = false;
-      tagsViews.value[v].disabled = true;
+      tagsViews[v].show = false;
+      tagsViews[v].disabled = true;
     });
   } else if (routeLength - 1 === currentIndex && currentIndex !== 0) {
     // 当前路由是所有路由中的最后一个
-    tagsViews.value[3].show = false;
+    tagsViews[3].show = false;
     Array.of(1, 2, 4, 5).forEach(v => {
-      tagsViews.value[v].disabled = false;
+      tagsViews[v].disabled = false;
     });
-    tagsViews.value[3].disabled = true;
+    tagsViews[3].disabled = true;
   } else if (currentIndex === 0 || currentPath === "/redirect/welcome") {
     // 当前路由为首页
     disabledMenus(true);
@@ -502,11 +503,11 @@ function openMenu(tag, e) {
   if (tag.path === "/welcome") {
     // 右键菜单为首页，只显示刷新
     showMenus(false);
-    tagsViews.value[0].show = true;
+    tagsViews[0].show = true;
   } else if (route.path !== tag.path) {
     // 右键菜单不匹配当前路由，隐藏刷新
-    tagsViews.value[0].show = false;
-    showMenuModel(tag.path);
+    tagsViews[0].show = false;
+    showMenuModel(tag.path, tag.query);
   } else if (
     // eslint-disable-next-line no-dupe-else-if
     multiTags.value.length === 2 &&
@@ -514,10 +515,10 @@ function openMenu(tag, e) {
   ) {
     showMenus(true);
     // 只有两个标签时不显示关闭其他标签页
-    tagsViews.value[4].show = false;
+    tagsViews[4].show = false;
   } else if (route.path === tag.path) {
     // 右键当前激活的菜单
-    showMenuModel(tag.path, true);
+    showMenuModel(tag.path, tag.query, true);
   }
 
   currentSelect.value = tag;
@@ -545,34 +546,36 @@ function tagOnClick(item) {
     path: item?.path,
     query: item?.query
   });
-  showMenuModel(item?.path);
+  showMenuModel(item?.path, item?.query);
 }
 
 // 鼠标移入
-function onMouseenter(item, index) {
+function onMouseenter(index) {
   if (index) activeIndex.value = index;
   if (unref(showModel) === "smart") {
-    if (hasClass(instance.refs["schedule" + index], "schedule-active")) return;
-    toggleClass(true, "schedule-in", instance.refs["schedule" + index]);
-    toggleClass(false, "schedule-out", instance.refs["schedule" + index]);
+    if (hasClass(instance.refs["schedule" + index][0], "schedule-active"))
+      return;
+    toggleClass(true, "schedule-in", instance.refs["schedule" + index][0]);
+    toggleClass(false, "schedule-out", instance.refs["schedule" + index][0]);
   } else {
-    if (hasClass(instance.refs["dynamic" + index], "card-active")) return;
-    toggleClass(true, "card-in", instance.refs["dynamic" + index]);
-    toggleClass(false, "card-out", instance.refs["dynamic" + index]);
+    if (hasClass(instance.refs["dynamic" + index][0], "card-active")) return;
+    toggleClass(true, "card-in", instance.refs["dynamic" + index][0]);
+    toggleClass(false, "card-out", instance.refs["dynamic" + index][0]);
   }
 }
 
 // 鼠标移出
-function onMouseleave(item, index) {
+function onMouseleave(index) {
   activeIndex.value = -1;
   if (unref(showModel) === "smart") {
-    if (hasClass(instance.refs["schedule" + index], "schedule-active")) return;
-    toggleClass(false, "schedule-in", instance.refs["schedule" + index]);
-    toggleClass(true, "schedule-out", instance.refs["schedule" + index]);
+    if (hasClass(instance.refs["schedule" + index][0], "schedule-active"))
+      return;
+    toggleClass(false, "schedule-in", instance.refs["schedule" + index][0]);
+    toggleClass(true, "schedule-out", instance.refs["schedule" + index][0]);
   } else {
-    if (hasClass(instance.refs["dynamic" + index], "card-active")) return;
-    toggleClass(false, "card-in", instance.refs["dynamic" + index]);
-    toggleClass(true, "card-out", instance.refs["dynamic" + index]);
+    if (hasClass(instance.refs["dynamic" + index][0], "card-active")) return;
+    toggleClass(false, "card-in", instance.refs["dynamic" + index][0]);
+    toggleClass(true, "card-out", instance.refs["dynamic" + index][0]);
   }
 }
 
@@ -612,17 +615,25 @@ onBeforeMount(() => {
     });
   });
 });
+
+const getTabStyle = computed((): CSSProperties => {
+  return {
+    transform: `translateX(${translateX.value}px)`
+  };
+});
+
+const getContextMenuStyle = computed((): CSSProperties => {
+  return { left: buttonLeft.value + "px", top: buttonTop.value + "px" };
+});
 </script>
 
 <template>
   <div ref="containerDom" class="tags-view" v-if="!showTags">
-    <i class="ri-arrow-left-s-line" @click="handleScroll(200)"></i>
+    <div class="arrow-left">
+      <IconifyIconOffline icon="arrow-left-s-line" @click="handleScroll(200)" />
+    </div>
     <div ref="scrollbarDom" class="scroll-container">
-      <div
-        class="tab"
-        ref="tabDom"
-        :style="{ transform: `translateX(${translateX}px)` }"
-      >
+      <div class="tab" ref="tabDom" :style="getTabStyle">
         <div
           :ref="'dynamic' + index"
           v-for="(item, index) in multiTags"
@@ -635,8 +646,8 @@ onBeforeMount(() => {
               : ''
           ]"
           @contextmenu.prevent="openMenu(item, $event)"
-          @mouseenter.prevent="onMouseenter(item, index)"
-          @mouseleave.prevent="onMouseleave(item, index)"
+          @mouseenter.prevent="onMouseenter(index)"
+          @mouseleave.prevent="onMouseleave(index)"
           @click="tagOnClick(item)"
         >
           <router-link :to="item.path"
@@ -650,7 +661,7 @@ onBeforeMount(() => {
             class="el-icon-close"
             @click.stop="deleteMenu(item)"
           >
-            <CloseBold />
+            <IconifyIconOffline icon="close-bold" />
           </el-icon>
           <div
             :ref="'schedule' + index"
@@ -660,13 +671,18 @@ onBeforeMount(() => {
         </div>
       </div>
     </div>
-    <i class="ri-arrow-right-s-line" @click="handleScroll(-200)"></i>
+    <span class="arrow-right">
+      <IconifyIconOffline
+        icon="arrow-right-s-line"
+        @click="handleScroll(-200)"
+      />
+    </span>
     <!-- 右键菜单按钮 -->
     <transition name="el-zoom-in-top">
       <ul
         v-show="visible"
         :key="Math.random()"
-        :style="{ left: buttonLeft + 'px', top: buttonTop + 'px' }"
+        :style="getContextMenuStyle"
         class="contextmenu"
       >
         <div
@@ -685,17 +701,17 @@ onBeforeMount(() => {
     <ul class="right-button">
       <li>
         <el-icon
-          :title="$t('message.hsrefreshRoute')"
+          :title="$t('buttons.hsrefreshRoute')"
           class="el-icon-refresh-right rotate"
           @click="onFresh"
         >
-          <RefreshRight />
+          <IconifyIconOffline icon="refresh-right" />
         </el-icon>
       </li>
       <li>
         <el-dropdown trigger="click" placement="bottom-end">
           <el-icon>
-            <ArrowDown />
+            <IconifyIconOffline icon="arrow-down" />
           </el-icon>
           <template #dropdown>
             <el-dropdown-menu>
@@ -706,7 +722,11 @@ onBeforeMount(() => {
                 :disabled="item.disabled"
                 @click="onClickDrop(key, item)"
               >
-                <component :is="item.icon" :key="key" />
+                <component
+                  :is="item.icon"
+                  :key="key"
+                  style="margin-right: 6px"
+                />
                 {{ $t(item.text) }}
               </el-dropdown-item>
             </el-dropdown-menu>

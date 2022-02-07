@@ -4,31 +4,28 @@ import { MockMethod } from "vite-plugin-mock";
 const permissionRouter = {
   path: "/permission",
   name: "permission",
-  redirect: "/permission/page",
+  redirect: "/permission/page/index",
   meta: {
-    title: "message.permission",
-    icon: "Lollipop",
+    title: "menus.permission",
+    icon: "lollipop",
     i18n: true,
-    showLink: true,
     rank: 3
   },
   children: [
     {
-      path: "/permission/page",
+      path: "/permission/page/index",
       name: "permissionPage",
       meta: {
-        title: "message.permissionPage",
-        i18n: true,
-        showLink: true
+        title: "menus.permissionPage",
+        i18n: true
       }
     },
     {
-      path: "/permission/button",
+      path: "/permission/button/index",
       name: "permissionButton",
       meta: {
-        title: "message.permissionButton",
+        title: "menus.permissionButton",
         i18n: true,
-        showLink: true,
         authority: []
       }
     }

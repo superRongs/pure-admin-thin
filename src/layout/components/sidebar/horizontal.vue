@@ -13,14 +13,12 @@ import Notice from "../notice/index.vue";
 import { templateRef } from "@vueuse/core";
 import SidebarItem from "./sidebarItem.vue";
 import avatars from "/@/assets/avatars.jpg";
-import { algorithm } from "/@/utils/algorithm";
 import screenfull from "../screenfull/index.vue";
 import { useRoute, useRouter } from "vue-router";
 import { storageSession } from "/@/utils/storage";
-import Icon from "/@/components/ReIcon/src/Icon.vue";
 import { deviceDetection } from "/@/utils/deviceDetection";
-import globalization from "/@/assets/svg/globalization.svg";
 import { usePermissionStoreHook } from "/@/store/modules/permission";
+import globalization from "/@/assets/svg/globalization.svg?component";
 
 const instance =
   getCurrentInstance().appContext.config.globalProperties.$storage;
@@ -34,6 +32,15 @@ const router = useRouter();
 const routers = useRouter().options.routes;
 let usename = storageSession.getItem("info")?.username;
 const { locale, t } = useI18n();
+
+const getDropdownItemStyle = computed(() => {
+  return t => {
+    return {
+      background: locale.value === t ? "#1b2a47" : "",
+      color: locale.value === t ? "#f4f4f5" : "#000"
+    };
+  };
+});
 
 watch(
   () => locale.value,
@@ -83,7 +90,7 @@ const menuSelect = (indexPath: string): void => {
       }
     });
   }
-  findCurrentRoute(algorithm.increaseIndexes(routers));
+  findCurrentRoute(routers);
 };
 
 function backHome() {
@@ -119,7 +126,11 @@ onMounted(() => {
 <template>
   <div class="horizontal-header">
     <div class="horizontal-header-left" @click="backHome">
-      <Icon svg :width="35" :height="35" content="team-iconlogo" />
+      <FontIcon
+        icon="team-iconlogo"
+        svg
+        style="width: 35px; height: 35px"
+      ></FontIcon>
       <h4>{{ title }}</h4>
     </div>
     <el-menu
@@ -140,32 +151,26 @@ onMounted(() => {
     </el-menu>
     <div class="horizontal-header-right">
       <!-- 通知 -->
-      <Notice />
+      <Notice id="header-notice" />
       <!-- 全屏 -->
-      <screenfull v-show="!deviceDetection()" />
+      <screenfull id="header-screenfull" v-show="!deviceDetection()" />
       <!-- 国际化 -->
-      <el-dropdown trigger="click">
+      <el-dropdown id="header-translation" trigger="click">
         <globalization />
         <template #dropdown>
           <el-dropdown-menu class="translation">
             <el-dropdown-item
-              :style="{
-                background: locale === 'zh' ? '#1b2a47' : '',
-                color: locale === 'zh' ? '#f4f4f5' : '#000'
-              }"
+              :style="getDropdownItemStyle('zh')"
               @click="translationCh"
               ><el-icon class="check-zh" v-show="locale === 'zh'"
-                ><check /></el-icon
+                ><IconifyIconOffline icon="check" /></el-icon
               >简体中文</el-dropdown-item
             >
             <el-dropdown-item
-              :style="{
-                background: locale === 'en' ? '#1b2a47' : '',
-                color: locale === 'en' ? '#f4f4f5' : '#000'
-              }"
+              :style="getDropdownItemStyle('en')"
               @click="translationEn"
               ><el-icon class="check-en" v-show="locale === 'en'"
-                ><check /></el-icon
+                ><IconifyIconOffline icon="check" /></el-icon
               >English</el-dropdown-item
             >
           </el-dropdown-menu>
@@ -180,18 +185,21 @@ onMounted(() => {
         <template #dropdown>
           <el-dropdown-menu class="logout">
             <el-dropdown-item @click="logout">
-              <i class="ri-logout-circle-r-line"></i
-              >{{ $t("message.hsLoginOut") }}</el-dropdown-item
+              <IconifyIconOffline
+                icon="logout-circle-r-line"
+                style="margin: 5px"
+              />
+              {{ $t("buttons.hsLoginOut") }}</el-dropdown-item
             >
           </el-dropdown-menu>
         </template>
       </el-dropdown>
       <el-icon
         class="el-icon-setting"
-        :title="$t('message.hssystemSet')"
+        :title="$t('buttons.hssystemSet')"
         @click="onPanel"
       >
-        <Setting />
+        <IconifyIconOffline icon="setting" />
       </el-icon>
     </div>
   </div>
@@ -199,25 +207,17 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .translation {
-  .el-dropdown-menu__item {
-    padding: 0 40px !important;
-  }
-
-  .el-dropdown-menu__item:focus,
-  .el-dropdown-menu__item:not(.is-disabled):hover {
-    color: #606266;
-    background: #f0f0f0;
+  ::v-deep(.el-dropdown-menu__item) {
+    padding: 5px 40px;
   }
 
   .check-zh {
     position: absolute;
     left: 20px;
-    top: 13px;
   }
 
   .check-en {
     position: absolute;
-    bottom: 13px;
     left: 20px;
   }
 }
@@ -225,17 +225,10 @@ onMounted(() => {
 .logout {
   max-width: 120px;
 
-  .el-dropdown-menu__item {
+  ::v-deep(.el-dropdown-menu__item) {
     min-width: 100%;
     display: inline-flex;
     flex-wrap: wrap;
-    padding: 0 18px !important;
-  }
-
-  .el-dropdown-menu__item:focus,
-  .el-dropdown-menu__item:not(.is-disabled):hover {
-    color: #606266;
-    background: #f0f0f0;
   }
 }
 </style>

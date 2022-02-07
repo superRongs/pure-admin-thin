@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { emitter } from "/@/utils/mitt";
 import Notice from "./notice/index.vue";
@@ -12,7 +13,8 @@ import { useAppStoreHook } from "/@/store/modules/app";
 import { unref, watch, getCurrentInstance } from "vue";
 import { deviceDetection } from "/@/utils/deviceDetection";
 import screenfull from "../components/screenfull/index.vue";
-import globalization from "/@/assets/svg/globalization.svg";
+import { useEpThemeStoreHook } from "/@/store/modules/epTheme";
+import globalization from "/@/assets/svg/globalization.svg?component";
 
 const instance =
   getCurrentInstance().appContext.config.globalProperties.$storage;
@@ -21,6 +23,15 @@ const router = useRouter();
 const route = useRoute();
 let usename = storageSession.getItem("info")?.username;
 const { locale } = useI18n();
+
+const getDropdownItemStyle = computed(() => {
+  return t => {
+    return {
+      background: locale.value === t ? useEpThemeStoreHook().epThemeColor : "",
+      color: locale.value === t ? "#f4f4f5" : "#000"
+    };
+  };
+});
 
 watch(
   () => locale.value,
@@ -73,32 +84,28 @@ function translationEn() {
 
     <div class="vertical-header-right">
       <!-- 通知 -->
-      <Notice />
+      <Notice id="header-notice" />
       <!-- 全屏 -->
-      <screenfull v-show="!deviceDetection()" />
+      <screenfull id="header-screenfull" v-show="!deviceDetection()" />
       <!-- 国际化 -->
-      <el-dropdown trigger="click">
+      <el-dropdown id="header-translation" trigger="click">
         <globalization />
         <template #dropdown>
           <el-dropdown-menu class="translation">
             <el-dropdown-item
-              :style="{
-                background: locale === 'zh' ? '#1b2a47' : '',
-                color: locale === 'zh' ? '#f4f4f5' : '#000'
-              }"
+              :style="getDropdownItemStyle('zh')"
               @click="translationCh"
-              ><el-icon class="check-zh" v-show="locale === 'zh'"
-                ><check /></el-icon
-              >简体中文</el-dropdown-item
+              ><IconifyIconOffline
+                class="check-zh"
+                v-show="locale === 'zh'"
+                icon="check"
+              />简体中文</el-dropdown-item
             >
             <el-dropdown-item
-              :style="{
-                background: locale === 'en' ? '#1b2a47' : '',
-                color: locale === 'en' ? '#f4f4f5' : '#000'
-              }"
+              :style="getDropdownItemStyle('en')"
               @click="translationEn"
               ><el-icon class="check-en" v-show="locale === 'en'"
-                ><check /></el-icon
+                ><IconifyIconOffline icon="check" /></el-icon
               >English</el-dropdown-item
             >
           </el-dropdown-menu>
@@ -113,18 +120,20 @@ function translationEn() {
         <template #dropdown>
           <el-dropdown-menu class="logout">
             <el-dropdown-item @click="logout">
-              <i class="ri-logout-circle-r-line"></i
-              >{{ $t("message.hsLoginOut") }}</el-dropdown-item
+              <IconifyIconOffline
+                icon="logout-circle-r-line"
+                style="margin: 5px"
+              />{{ $t("buttons.hsLoginOut") }}</el-dropdown-item
             >
           </el-dropdown-menu>
         </template>
       </el-dropdown>
       <el-icon
         class="el-icon-setting"
-        :title="$t('message.hssystemSet')"
+        :title="$t('buttons.hssystemSet')"
         @click="onPanel"
       >
-        <Setting />
+        <IconifyIconOffline icon="setting" />
       </el-icon>
     </div>
   </div>
@@ -145,10 +154,6 @@ function translationEn() {
     cursor: pointer;
     transition: background 0.3s;
     -webkit-tap-highlight-color: transparent;
-
-    &:hover {
-      background: rgba(0, 0, 0, 0.025);
-    }
   }
 
   .vertical-header-right {
@@ -229,25 +234,17 @@ function translationEn() {
 }
 
 .translation {
-  .el-dropdown-menu__item {
-    padding: 0 40px !important;
-  }
-
-  .el-dropdown-menu__item:focus,
-  .el-dropdown-menu__item:not(.is-disabled):hover {
-    color: #606266;
-    background: #f0f0f0;
+  ::v-deep(.el-dropdown-menu__item) {
+    padding: 5px 40px;
   }
 
   .check-zh {
     position: absolute;
     left: 20px;
-    top: 13px;
   }
 
   .check-en {
     position: absolute;
-    bottom: 13px;
     left: 20px;
   }
 }
@@ -255,17 +252,10 @@ function translationEn() {
 .logout {
   max-width: 120px;
 
-  .el-dropdown-menu__item {
+  ::v-deep(.el-dropdown-menu__item) {
     min-width: 100%;
     display: inline-flex;
     flex-wrap: wrap;
-    padding: 0 18px !important;
-  }
-
-  .el-dropdown-menu__item:focus,
-  .el-dropdown-menu__item:not(.is-disabled):hover {
-    color: #606266;
-    background: #f0f0f0;
   }
 }
 </style>

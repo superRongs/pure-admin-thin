@@ -9,20 +9,29 @@ import {
   useCssModule,
   getCurrentInstance
 } from "vue";
-import panel from "../panel/index.vue";
+import rgbHex from "rgb-hex";
+import { find } from "lodash-es";
 import { getConfig } from "/@/config";
 import { useRouter } from "vue-router";
+import panel from "../panel/index.vue";
 import { emitter } from "/@/utils/mitt";
 import { templateRef } from "@vueuse/core";
 import { debounce } from "/@/utils/debounce";
 import { themeColorsType } from "../../types";
 import { useAppStoreHook } from "/@/store/modules/app";
+import { shadeBgColor } from "../../theme/element-plus";
+import { useEpThemeStoreHook } from "/@/store/modules/epTheme";
 import { storageLocal, storageSession } from "/@/utils/storage";
 import { useMultiTagsStoreHook } from "/@/store/modules/multiTags";
+import { createNewStyle, writeNewStyle } from "../../theme/element-plus";
 import { toggleTheme } from "@zougt/vite-plugin-theme-preprocessor/dist/browser-utils";
+
+import dayIcon from "/@/assets/svg/day.svg?component";
+import darkIcon from "/@/assets/svg/dark.svg?component";
 
 const router = useRouter();
 const { isSelect } = useCssModule();
+const body = document.documentElement as HTMLElement;
 const instance =
   getCurrentInstance().appContext.app.config.globalProperties.$storage;
 
@@ -71,16 +80,32 @@ if (unref(layoutTheme)) {
 }
 
 // 默认灵动模式
-const markValue = ref(storageLocal.getItem("showModel") || "smart");
+const markValue = ref(instance.configure?.showModel ?? "smart");
 
-const logoVal = ref(storageLocal.getItem("logoVal") || "1");
+const logoVal = ref(instance.configure?.showLogo ?? true);
+
+const epThemeColor = ref(useEpThemeStoreHook().getEpThemeColor);
 
 const settings = reactive({
-  greyVal: instance.sets.grey,
-  weakVal: instance.sets.weak,
-  tabsVal: instance.sets.hideTabs,
-  multiTagsCache: instance.sets.multiTagsCache
+  greyVal: instance.configure.grey,
+  weakVal: instance.configure.weak,
+  tabsVal: instance.configure.hideTabs,
+  showLogo: instance.configure.showLogo,
+  showModel: instance.configure.showModel,
+  multiTagsCache: instance.configure.multiTagsCache
 });
+
+const getThemeColorStyle = computed(() => {
+  return rgb => {
+    return { background: `rgb(${rgb})` };
+  };
+});
+
+function changeStorageConfigure(key, val) {
+  const storageConfigure = instance.configure;
+  storageConfigure[key] = val;
+  instance.configure = storageConfigure;
+}
 
 function toggleClass(flag: boolean, clsName: string, target?: HTMLElement) {
   const targetEl = target || document.body;
@@ -92,12 +117,7 @@ function toggleClass(flag: boolean, clsName: string, target?: HTMLElement) {
 // 灰色模式设置
 const greyChange = (value): void => {
   toggleClass(settings.greyVal, "html-grey", document.querySelector("html"));
-  instance.sets = {
-    grey: value,
-    weak: instance.sets.weak,
-    hideTabs: instance.sets.hideTabs,
-    multiTagsCache: instance.sets.multiTagsCache
-  };
+  changeStorageConfigure("grey", value);
 };
 
 // 色弱模式设置
@@ -107,77 +127,57 @@ const weekChange = (value): void => {
     "html-weakness",
     document.querySelector("html")
   );
-  instance.sets = {
-    grey: instance.sets.grey,
-    weak: value,
-    hideTabs: instance.sets.hideTabs,
-    multiTagsCache: instance.sets.multiTagsCache
-  };
+  changeStorageConfigure("weak", value);
 };
 
 const tagsChange = () => {
   let showVal = settings.tabsVal;
-  instance.sets = {
-    grey: instance.sets.grey,
-    weak: instance.sets.weak,
-    hideTabs: showVal,
-    multiTagsCache: instance.sets.multiTagsCache
-  };
+  changeStorageConfigure("hideTabs", showVal);
   emitter.emit("tagViewsChange", showVal);
 };
 
 const multiTagsCacheChange = () => {
   let multiTagsCache = settings.multiTagsCache;
-  instance.sets = {
-    grey: instance.sets.grey,
-    weak: instance.sets.weak,
-    hideTabs: instance.sets.hideTabs,
-    multiTagsCache: multiTagsCache
-  };
+  changeStorageConfigure("multiTagsCache", multiTagsCache);
   useMultiTagsStoreHook().multiTagsCacheChange(multiTagsCache);
 };
 
-//初始化项目配置
-nextTick(() => {
-  settings.greyVal &&
-    document.querySelector("html")?.setAttribute("class", "html-grey");
-  settings.weakVal &&
-    document.querySelector("html")?.setAttribute("class", "html-weakness");
-  settings.tabsVal && tagsChange();
-});
-
 // 清空缓存并返回登录页
 function onReset() {
-  storageLocal.clear();
-  storageSession.clear();
-  toggleClass(false, "html-grey", document.querySelector("html"));
-  toggleClass(false, "html-weakness", document.querySelector("html"));
+  toggleClass(getConfig().Grey, "html-grey", document.querySelector("html"));
+  toggleClass(
+    getConfig().Weak,
+    "html-weakness",
+    document.querySelector("html")
+  );
   useMultiTagsStoreHook().handleTags("equal", [
     {
       path: "/welcome",
       parentPath: "/",
       meta: {
-        title: "message.hshome",
-        icon: "el-icon-s-home",
-        i18n: true,
-        showLink: true
+        title: "menus.hshome",
+        icon: "home-filled",
+        i18n: true
       }
     }
   ]);
   useMultiTagsStoreHook().multiTagsCacheChange(getConfig().MultiTagsCache);
+  useEpThemeStoreHook().setEpThemeColor(getConfig().EpThemeColor);
+  storageLocal.clear();
+  storageSession.clear();
   router.push("/login");
 }
 
 function onChange(label) {
-  storageLocal.setItem("showModel", label);
+  changeStorageConfigure("showModel", label);
   emitter.emit("tagViewsShowModel", label);
 }
 
 // 侧边栏Logo
 function logoChange() {
-  unref(logoVal) === "1"
-    ? storageLocal.setItem("logoVal", "1")
-    : storageLocal.setItem("logoVal", "-1");
+  unref(logoVal)
+    ? changeStorageConfigure("showLogo", true)
+    : changeStorageConfigure("showLogo", false);
   emitter.emit("logoChange", unref(logoVal));
 }
 
@@ -223,23 +223,97 @@ const getThemeColor = computed(() => {
 function setLayoutModel(layout: string) {
   layoutTheme.value.layout = layout;
   window.document.body.setAttribute("layout", layout);
-  instance.layout = { layout, theme: layoutTheme.value.theme };
+  instance.layout = {
+    layout,
+    theme: layoutTheme.value.theme,
+    darkMode: instance.layout.darkMode,
+    sidebarStatus: instance.layout.sidebarStatus,
+    epThemeColor: instance.layout.epThemeColor
+  };
   useAppStoreHook().setLayout(layout);
 }
 
+// 存放夜间主题切换前的导航主题色
+let tempLayoutThemeColor;
+
 // 设置导航主题色
 function setLayoutThemeColor(theme: string) {
+  tempLayoutThemeColor = instance.layout.theme;
   layoutTheme.value.theme = theme;
   toggleTheme({
     scopeName: `layout-theme-${theme}`
   });
-  instance.layout = { layout: useAppStoreHook().layout, theme };
+  instance.layout = {
+    layout: useAppStoreHook().layout,
+    theme,
+    darkMode: dataTheme.value,
+    sidebarStatus: instance.layout.sidebarStatus,
+    epThemeColor: instance.layout.epThemeColor
+  };
+
+  if (theme === "default" || theme === "light") {
+    setEpThemeColor(getConfig().EpThemeColor);
+  } else {
+    const colors = find(themeColors.value, { themeColor: theme });
+    const color = "#" + rgbHex(colors.rgb);
+    setEpThemeColor(color);
+  }
 }
+
+// 设置ep主题色
+const setEpThemeColor = (color: string) => {
+  writeNewStyle(createNewStyle(color));
+  useEpThemeStoreHook().setEpThemeColor(color);
+  body.style.setProperty("--el-color-primary-active", shadeBgColor(color));
+};
+
+let dataTheme = ref<boolean>(instance.layout.darkMode);
+
+// 日间、夜间主题切换
+function dataThemeChange() {
+  if (dataTheme.value) {
+    body.setAttribute("data-theme", "dark");
+    setLayoutThemeColor("light");
+  } else {
+    body.setAttribute("data-theme", "");
+    tempLayoutThemeColor && setLayoutThemeColor(tempLayoutThemeColor);
+    instance.layout = {
+      layout: useAppStoreHook().layout,
+      theme: instance.layout.theme,
+      darkMode: dataTheme.value,
+      sidebarStatus: instance.layout.sidebarStatus,
+      epThemeColor: instance.layout.epThemeColor
+    };
+  }
+}
+
+//初始化项目配置
+nextTick(() => {
+  settings.greyVal &&
+    document.querySelector("html")?.setAttribute("class", "html-grey");
+  settings.weakVal &&
+    document.querySelector("html")?.setAttribute("class", "html-weakness");
+  settings.tabsVal && tagsChange();
+
+  writeNewStyle(createNewStyle(epThemeColor.value));
+  dataThemeChange();
+});
 </script>
 
 <template>
   <panel>
-    <el-divider>主题风格</el-divider>
+    <el-divider>主题</el-divider>
+    <el-switch
+      v-model="dataTheme"
+      inline-prompt
+      class="pure-datatheme"
+      :active-icon="dayIcon"
+      :inactive-icon="darkIcon"
+      @change="dataThemeChange"
+    >
+    </el-switch>
+
+    <el-divider>导航栏模式</el-divider>
     <ul class="pure-theme">
       <el-tooltip class="item" content="左侧菜单模式" placement="bottom">
         <li
@@ -264,12 +338,12 @@ function setLayoutThemeColor(theme: string) {
       </el-tooltip>
     </ul>
 
-    <el-divider>主题色</el-divider>
-    <ul class="theme-color">
+    <el-divider v-show="!dataTheme">主题色</el-divider>
+    <ul class="theme-color" v-show="!dataTheme">
       <li
         v-for="(item, index) in themeColors"
         :key="index"
-        :style="{ background: `rgb(${item.rgb})` }"
+        :style="getThemeColorStyle(item.rgb)"
         @click="setLayoutThemeColor(item.themeColor)"
       >
         <el-icon
@@ -277,14 +351,14 @@ function setLayoutThemeColor(theme: string) {
           :size="17"
           :color="getThemeColor(item.themeColor)"
         >
-          <Check />
+          <IconifyIconOffline icon="check" />
         </el-icon>
       </li>
     </ul>
 
     <el-divider>界面显示</el-divider>
     <ul class="setting">
-      <li>
+      <li v-show="!dataTheme">
         <span>灰色模式</span>
         <el-switch
           v-model="settings.greyVal"
@@ -296,7 +370,7 @@ function setLayoutThemeColor(theme: string) {
         >
         </el-switch>
       </li>
-      <li>
+      <li v-show="!dataTheme">
         <span>色弱模式</span>
         <el-switch
           v-model="settings.weakVal"
@@ -325,8 +399,8 @@ function setLayoutThemeColor(theme: string) {
         <el-switch
           v-model="logoVal"
           inline-prompt
-          active-value="1"
-          inactive-value="-1"
+          :active-value="true"
+          :inactive-value="false"
           inactive-color="#a6a6a6"
           active-text="开"
           inactive-text="关"
@@ -362,7 +436,12 @@ function setLayoutThemeColor(theme: string) {
       style="width: 90%; margin: 24px 15px"
       @click="onReset"
     >
-      <i class="fa fa-sign-out"></i>
+      <IconifyIconOffline
+        icon="fa-sign-out"
+        width="15"
+        height="15"
+        style="margin-right: 4px"
+      />
       清空缓存并返回登录页</el-button
     >
   </panel>
@@ -370,7 +449,7 @@ function setLayoutThemeColor(theme: string) {
 
 <style scoped module>
 .isSelect {
-  border: 2px solid #0960bd;
+  border: 2px solid var(--el-color-primary);
 }
 </style>
 
@@ -389,6 +468,14 @@ function setLayoutThemeColor(theme: string) {
 :deep(.el-divider__text) {
   font-size: 16px;
   font-weight: 700;
+}
+
+.pure-datatheme {
+  width: 100%;
+  height: 50px;
+  text-align: center;
+  display: block;
+  padding-top: 25px;
 }
 
 .pure-theme {

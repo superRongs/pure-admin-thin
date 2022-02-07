@@ -1,12 +1,7 @@
 import { resolve } from "path";
-import vue from "@vitejs/plugin-vue";
-import svgLoader from "vite-svg-loader";
-import vueJsx from "@vitejs/plugin-vue-jsx";
 import { warpperEnv, regExps } from "./build";
-import { viteMockServe } from "vite-plugin-mock";
-import ElementPlus from "unplugin-element-plus/vite";
+import { getPluginsList } from "./build/plugins";
 import { UserConfigExport, ConfigEnv, loadEnv } from "vite";
-import themePreprocessorPlugin from "@zougt/vite-plugin-theme-preprocessor";
 
 // 当前执行node命令时文件夹的地址（工作目录）
 const root: string = process.cwd();
@@ -27,11 +22,11 @@ const alias: Record<string, string> = {
 export default ({ command, mode }: ConfigEnv): UserConfigExport => {
   const {
     VITE_PORT,
+    VITE_LEGACY,
     VITE_PUBLIC_PATH,
     VITE_PROXY_DOMAIN,
     VITE_PROXY_DOMAIN_REAL
   } = warpperEnv(loadEnv(mode, root));
-  const prodMock = true;
   return {
     base: VITE_PUBLIC_PATH,
     root,
@@ -75,86 +70,16 @@ export default ({ command, mode }: ConfigEnv): UserConfigExport => {
             }
           : null
     },
-    plugins: [
-      vue(),
-      // jsx、tsx语法支持
-      vueJsx(),
-      // 自定义主题
-      themePreprocessorPlugin({
-        scss: {
-          multipleScopeVars: [
-            {
-              scopeName: "layout-theme-default",
-              path: pathResolve("src/layout/theme/default-vars.scss")
-            },
-            {
-              scopeName: "layout-theme-light",
-              path: pathResolve("src/layout/theme/light-vars.scss")
-            },
-            {
-              scopeName: "layout-theme-dusk",
-              path: pathResolve("src/layout/theme/dusk-vars.scss")
-            },
-            {
-              scopeName: "layout-theme-volcano",
-              path: pathResolve("src/layout/theme/volcano-vars.scss")
-            },
-            {
-              scopeName: "layout-theme-yellow",
-              path: pathResolve("src/layout/theme/yellow-vars.scss")
-            },
-            {
-              scopeName: "layout-theme-mingQing",
-              path: pathResolve("src/layout/theme/mingQing-vars.scss")
-            },
-            {
-              scopeName: "layout-theme-auroraGreen",
-              path: pathResolve("src/layout/theme/auroraGreen-vars.scss")
-            },
-            {
-              scopeName: "layout-theme-pink",
-              path: pathResolve("src/layout/theme/pink-vars.scss")
-            },
-            {
-              scopeName: "layout-theme-saucePurple",
-              path: pathResolve("src/layout/theme/saucePurple-vars.scss")
-            }
-          ],
-          // 默认取 multipleScopeVars[0].scopeName
-          defaultScopeName: "",
-          // 在生产模式是否抽取独立的主题css文件，extract为true以下属性有效
-          extract: true,
-          // 独立主题css文件的输出路径，默认取 viteConfig.build.assetsDir 相对于 (viteConfig.build.outDir)
-          outputDir: "",
-          // 会选取defaultScopeName对应的主题css文件在html添加link
-          themeLinkTagId: "head",
-          // "head"||"head-prepend" || "body" ||"body-prepend"
-          themeLinkTagInjectTo: "head",
-          // 是否对抽取的css文件内对应scopeName的权重类名移除
-          removeCssScopeName: false,
-          // 可以自定义css文件名称的函数
-          customThemeCssFileName: scopeName => scopeName
-        }
-      }),
-      // svg组件化支持
-      svgLoader(),
-      ElementPlus({}),
-      // mock支持
-      viteMockServe({
-        mockPath: "mock",
-        localEnabled: command === "serve",
-        prodEnabled: command !== "serve" && prodMock,
-        injectCode: `
-          import { setupProdMockServer } from './mockProdServer';
-          setupProdMockServer();
-        `,
-        logger: true
-      })
-    ],
+    plugins: getPluginsList(command, VITE_LEGACY),
     optimizeDeps: {
       include: [
-        "element-plus/lib/locale/lang/zh-cn",
-        "element-plus/lib/locale/lang/en"
+        "pinia",
+        "vue-i18n",
+        "lodash-es",
+        "@vueuse/core",
+        "@iconify/vue",
+        "element-plus/lib/locale/lang/en",
+        "element-plus/lib/locale/lang/zh-cn"
       ],
       exclude: ["@zougt/vite-plugin-theme-preprocessor/dist/browser-utils"]
     },

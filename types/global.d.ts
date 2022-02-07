@@ -6,16 +6,16 @@ import type {
   PropType as VuePropType
 } from "vue";
 
+// GlobalComponents for Volar
+declare module "vue" {
+  export interface GlobalComponents {
+    IconifyIconOffline: typeof import("../src/components/ReIcon")["IconifyIconOffline"];
+    IconifyIconOnline: typeof import("../src/components/ReIcon")["IconifyIconOnline"];
+    FontIcon: typeof import("../src/components/ReIcon")["FontIcon"];
+  }
+}
+
 declare global {
-  const __APP_INFO__: {
-    pkg: {
-      name: string;
-      version: string;
-      dependencies: Recordable<string>;
-      devDependencies: Recordable<string>;
-    };
-    lastBuildTime: string;
-  };
   interface Window {
     // Global vue app instance
     __APP__: App<Element>;
@@ -23,7 +23,6 @@ declare global {
     mozCancelAnimationFrame: (handle: number) => void;
     oCancelAnimationFrame: (handle: number) => void;
     msCancelAnimationFrame: (handle: number) => void;
-
     webkitRequestAnimationFrame: (callback: FrameRequestCallback) => number;
     mozRequestAnimationFrame: (callback: FrameRequestCallback) => number;
     oRequestAnimationFrame: (callback: FrameRequestCallback) => number;
@@ -69,6 +68,7 @@ declare global {
     VITE_PROXY_DOMAIN: string;
     VITE_PROXY_DOMAIN_REAL: string;
     VITE_ROUTER_HISTORY: string;
+    VITE_LEGACY: boolean;
   }
 
   declare interface ServerConfigs {
@@ -81,9 +81,14 @@ declare global {
     Locale?: string;
     Layout?: string;
     Theme?: string;
+    DarkMode?: boolean;
     Grey?: boolean;
     Weak?: boolean;
     HideTabs?: boolean;
+    SidebarStatus?: boolean;
+    EpThemeColor?: string;
+    ShowLogo?: boolean;
+    ShowModel?: string;
     MapConfigure?: {
       amapKey?: string;
       options: {

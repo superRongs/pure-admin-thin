@@ -1,3 +1,4 @@
+import { $t } from "/@/plugins/i18n";
 import Layout from "/@/layout/index.vue";
 
 const externalLink = {
@@ -5,9 +6,8 @@ const externalLink = {
   name: "external",
   component: Layout,
   meta: {
-    icon: "Link",
-    title: "message.externalLink",
-    showLink: true,
+    icon: "link",
+    title: $t("menus.externalLink"),
     i18n: true,
     rank: 190
   },
@@ -15,8 +15,7 @@ const externalLink = {
     {
       path: "https://github.com/xiaoxian521/vue-pure-admin",
       meta: {
-        title: "message.externalLink",
-        showLink: true,
+        title: $t("menus.externalLink"),
         i18n: true,
         rank: 191
       }

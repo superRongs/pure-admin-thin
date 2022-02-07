@@ -58,10 +58,9 @@ export const useUserStore = defineStore({
           path: "/welcome",
           parentPath: "/",
           meta: {
-            title: "message.hshome",
-            icon: "el-icon-s-home",
-            i18n: true,
-            showLink: true
+            title: "menus.hshome",
+            icon: "home-filled",
+            i18n: true
           }
         }
       ]);
