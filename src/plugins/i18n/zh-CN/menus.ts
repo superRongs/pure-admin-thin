@@ -17,5 +17,6 @@ export default {
   permission: "权限管理",
   permissionPage: "页面权限",
   permissionButton: "按钮权限",
-  externalLink: "外链"
+  externalLink: "外链",
+  testLink: "测试"
 };

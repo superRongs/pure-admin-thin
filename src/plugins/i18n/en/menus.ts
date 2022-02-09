@@ -17,5 +17,6 @@ export default {
   permission: "Permission Manage",
   permissionPage: "Page Permission",
   permissionButton: "Button Permission",
-  externalLink: "External Link"
+  externalLink: "External Link",
+  testLink: "test"
 };
